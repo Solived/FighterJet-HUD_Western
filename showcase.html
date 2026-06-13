@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>F-16 HUD — Live Showcase</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+/* ══ Showcase shell ════════════════════════════════════════════════════════════ */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:'Share Tech Mono','Courier New',monospace}
+
+#showcase{display:flex;flex-direction:column;width:100%;height:100vh}
+
+/* top info bar */
+#info-bar{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:0 12px;height:30px;flex-shrink:0;
+    background:#020a04;border-bottom:1px solid #00e64b33;
+}
+#scene-lbl{font-size:10px;letter-spacing:.22em;color:#00e64b;text-shadow:0 0 8px #00e64b88}
+#callout-txt{font-size:9px;letter-spacing:.10em;color:#00e64b66;max-width:60%;text-align:center;transition:opacity .4s}
+#auto-lbl{font-size:9px;letter-spacing:.14em;color:#00e64b33}
+
+/* HUD viewport: the 1920×1080 reference frame, scaled to fit */
+#hud-vp{
+    position:relative;width:100%;flex:1;min-height:0;
+    overflow:hidden;background:radial-gradient(ellipse at 50% 40%,#000d06 0%,#000 70%);
+}
+#hud-frame{
+    position:absolute;top:0;left:0;
+    width:1920px;height:1080px;
+    transform-origin:top left;
+}
+
+/* control panel */
+#ctrl{
+    flex-shrink:0;padding:7px 12px 9px;
+    background:#030d05;border-top:1px solid #00e64b33;
+    display:flex;flex-direction:column;gap:5px;
+}
+.cp-row{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.cp-lbl{font-size:8px;letter-spacing:.18em;color:#00e64b44;min-width:72px;text-align:right;flex-shrink:0}
+.btn{
+    background:transparent;border:1px solid #00e64b44;
+    color:#00e64b77;font-family:inherit;font-size:8px;letter-spacing:.10em;
+    padding:3px 7px;cursor:pointer;transition:all .12s;white-space:nowrap;
+}
+.btn:hover{background:#00e64b18;color:#00e64b;border-color:#00e64b99}
+.btn.on{background:#00e64b28;color:#00e64b;border-color:#00e64b;box-shadow:0 0 6px #00e64b44}
+.btn.snd{border-color:#00c3ff44;color:#00c3ff66}
+.btn.snd:hover,.btn.snd.on{background:#00c3ff18;color:#00c3ff;border-color:#00c3ff}
+.btn.urg{border-color:#f0303044;color:#f0303066}
+.btn.urg:hover,.btn.urg.on{background:#f0303018;color:#f03030;border-color:#f03030;box-shadow:0 0 6px #f0303044}
+.btn.caut{border-color:#ffb40044;color:#ffb40066}
+.btn.caut:hover,.btn.caut.on{background:#ffb40018;color:#ffb400;border-color:#ffb400;box-shadow:0 0 6px #ffb40044}
+.btn.t0{border-color:#00e64b88;color:#00e64b}.btn.t0.on{background:#00e64b28;box-shadow:0 0 8px #00e64b55}
+.btn.t1{border-color:#ff940088;color:#ff9400}.btn.t1.on{background:#ff940028;box-shadow:0 0 8px #ff940055}
+.btn.t2{border-color:#eb202088;color:#eb2020}.btn.t2.on{background:#eb202028;box-shadow:0 0 8px #eb202055}
+.btn.t3{border-color:#00c3ff88;color:#00c3ff}.btn.t3.on{background:#00c3ff28;box-shadow:0 0 8px #00c3ff55}
+.sep{width:1px;height:16px;background:#00e64b22;flex-shrink:0}
+#audio-tip{font-size:8px;color:#00e64b33;padding-left:8px}
+
+/* ══ F-16 HUD Styles (full style.css inline) ══════════════════════════════════ */
+:root{--c:#00e64b;--cg:rgba(0,230,75,.55);--cgs:rgba(0,230,75,.10)}
+.main.green {--c:#00e64b;--cg:rgba(0,230,75,.55);--cgs:rgba(0,230,75,.10)}
+.main.orange{--c:#ff9400;--cg:rgba(255,148,0,.55);--cgs:rgba(255,148,0,.10)}
+.main.red   {--c:#eb1e1e;--cg:rgba(235,30,30,.55);--cgs:rgba(235,30,30,.10)}
+.main.blue  {--c:#00c3ff;--cg:rgba(0,195,255,.55);--cgs:rgba(0,195,255,.10)}
+
+.main{display:block!important;position:absolute;inset:0;font-family:'Share Tech Mono','Courier New',monospace;color:var(--c);pointer-events:none}
+.main::after{content:"";position:absolute;inset:0;pointer-events:none;z-index:9999;background:repeating-linear-gradient(to bottom,transparent 0,transparent 2px,rgba(0,0,0,.04) 2px,rgba(0,0,0,.04) 4px)}
+
+.hdg-wrap{position:absolute;top:calc(50% - 258px);left:50%;transform:translateX(-50%);width:300px;height:28px;overflow:hidden;border-bottom:1px solid var(--c);box-shadow:0 2px 8px var(--cgs)}
+#hdg-inner{position:absolute;bottom:0;width:5400px;height:100%;will-change:transform}
+.hm{position:absolute;bottom:0;width:1px;background:var(--c);opacity:.35;height:7px}
+.hm.major{height:13px;opacity:.7}
+.hm.cardinal{height:20px;opacity:1}
+.hm.cardinal span{position:absolute;bottom:22px;left:50%;transform:translateX(-50%);font-size:9px;font-weight:700;white-space:nowrap;color:var(--c);text-shadow:0 0 5px var(--cg)}
+.hdg-caret{position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-bottom:6px solid var(--c);filter:drop-shadow(0 0 3px var(--c));z-index:2}
+.hdg-box{position:absolute;top:calc(50% - 222px);left:50%;transform:translateX(-50%);font-size:16px;font-weight:700;letter-spacing:.12em;color:var(--c);text-shadow:0 0 7px var(--cg)}
+#pitch-canvas,#spd-canvas,#alt-canvas{position:absolute;pointer-events:none}
+.aoa-idx{position:absolute;top:50%;left:calc(50% - 390px);transform:translateY(-50%);display:flex;flex-direction:column;align-items:center;gap:5px}
+.aoa-seg{font-size:15px;opacity:.18;color:var(--c);transition:opacity .08s,color .08s}
+.aoa-seg.hi{opacity:1;color:#ff4040;text-shadow:0 0 7px rgba(255,64,64,.9)}
+.aoa-seg.ok{opacity:1;color:#40ff70;text-shadow:0 0 7px rgba(64,255,112,.9)}
+.aoa-seg.lo{opacity:1;color:var(--c);text-shadow:0 0 5px var(--cg)}
+.tape-sub{position:absolute;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:7px}
+.tape-sub-l{left:calc(50% - 440px);align-items:flex-end}
+.tape-sub-r{left:calc(50% + 320px)}
+.ts-row{display:flex;align-items:baseline;gap:3px}
+.ts-lbl{font-size:10px;opacity:.55;color:var(--c)}
+.ts-val{font-size:14px;font-weight:700;color:var(--c);text-shadow:0 0 5px var(--cg);min-width:40px}
+.ts-vs{min-width:60px}
+.val-warn{color:#ffb400!important;text-shadow:0 0 6px rgba(255,180,0,.8)!important}
+.val-crit{color:#f03030!important;text-shadow:0 0 6px rgba(240,48,48,.8)!important}
+.wpn-panel{position:absolute;bottom:76px;left:50%;transform:translateX(-50%);text-align:center;min-width:260px;border:1px solid var(--c);padding:5px 18px;box-shadow:0 0 12px var(--cgs)}
+.wpn-name{font-size:13px;font-weight:700;letter-spacing:.14em;color:var(--c);text-shadow:0 0 6px var(--cg)}
+.wpn-detail{display:flex;justify-content:center;align-items:center;gap:10px;margin-top:2px}
+.wpn-sub{font-size:9px;opacity:.65;color:var(--c)}
+.wpn-lock{font-size:10px;font-weight:700;color:#ffd000;text-shadow:0 0 5px rgba(255,208,0,.8)}
+.wpn-dist{font-size:10px;opacity:.7;color:var(--c)}
+.sys-panel{position:absolute;bottom:76px;left:calc(50% - 440px);width:150px}
+.sys-row{display:flex;align-items:center;gap:5px;margin-bottom:8px}
+.sys-lbl{font-size:9px;opacity:.6;width:26px;color:var(--c)}
+.sys-bar-w{flex:1;height:5px;border:1px solid var(--c);overflow:hidden;box-shadow:0 0 3px var(--cgs)}
+.sys-bar{height:100%;width:100%;background:var(--c);box-shadow:0 0 5px var(--cg);transition:width .4s ease,background .3s}
+.sys-bar.bar-warn{background:#ffb400;box-shadow:0 0 5px rgba(255,180,0,.8)}
+.sys-bar.bar-crit{background:#f03030;box-shadow:0 0 5px rgba(240,48,48,.8)}
+.sys-pct{font-size:9px;width:28px;text-align:right;color:var(--c)}
+.status-panel{position:absolute;bottom:76px;left:calc(50% + 305px);text-align:right}
+.status-item{font-size:10px;color:var(--c);text-shadow:0 0 4px var(--cg);border:1px solid var(--c);padding:2px 6px;margin-bottom:4px;box-shadow:0 0 5px var(--cgs)}
+.warn-col{position:absolute;top:34%;left:calc(50% - 445px);display:flex;flex-direction:column;gap:4px}
+.w-item{display:none;padding:2px 8px;font-size:11px;font-weight:700;letter-spacing:.1em;border:1.5px solid}
+.w-urgent{color:#f03030;border-color:#f03030;text-shadow:0 0 7px rgba(240,48,48,.9);box-shadow:0 0 8px rgba(240,48,48,.25)}
+.w-caution{color:#ffb400;border-color:#ffb400;text-shadow:0 0 7px rgba(255,180,0,.9);box-shadow:0 0 8px rgba(255,180,0,.25)}
+.warn-fast{animation:wBlink .38s step-start infinite}
+.warn-blink{animation:wBlink 1.0s step-start infinite}
+.warn-slow{animation:wBlink 1.9s step-start infinite}
+@keyframes wBlink{0%,49%{opacity:1}50%,100%{opacity:0}}
+.warn-missile{display:none;position:absolute;bottom:33%;left:50%;transform:translateX(-50%);font-size:13px;font-weight:700;letter-spacing:.14em;color:#f03030;border:2px solid #f03030;padding:3px 16px;text-shadow:0 0 10px rgba(240,48,48,1);box-shadow:0 0 16px rgba(240,48,48,.5)}
+.ret{position:absolute;display:none;transform:translate(-50%,-50%);color:var(--c)}
+.ret-gun{width:40px;height:40px}
+.gun-h{position:absolute;top:50%;left:0;width:100%;height:1px;background:var(--c);transform:translateY(-50%)}
+.gun-v{position:absolute;left:50%;top:0;height:100%;width:1px;background:var(--c);transform:translateX(-50%)}
+.gun-ring{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:16px;height:16px;border:1.5px dashed var(--c);border-radius:50%;box-shadow:0 0 5px var(--cg)}
+.ret-cannon{width:56px;height:70px}
+.cannon-ring{position:absolute;top:0;left:50%;transform:translateX(-50%);width:54px;height:54px;border:2px solid var(--c);border-radius:50%;box-shadow:0 0 7px var(--cg)}
+.cannon-dot{position:absolute;top:23px;left:50%;transform:translateX(-50%);width:6px;height:6px;border:1.5px solid var(--c);border-radius:50%}
+.cannon-stem{position:absolute;top:55px;left:50%;transform:translateX(-50%);width:2px;height:14px;background:var(--c)}
+.ret-miss{width:68px;height:78px}
+.miss-ase{position:absolute;top:0;left:50%;transform:translateX(-50%);width:62px;height:62px;border:1.5px dashed var(--c);border-radius:50%;box-shadow:0 0 6px var(--cg)}
+.miss-diamond{display:none;position:absolute;top:17px;left:50%;transform:translateX(-50%) rotate(45deg);width:28px;height:28px;border:2px solid var(--c);box-shadow:0 0 8px var(--cg)}
+.miss-label{position:absolute;top:64px;left:50%;transform:translateX(-50%);font-size:9px;white-space:nowrap;color:var(--c);text-shadow:0 0 4px var(--cg)}
+.ret-jdam{width:76px;height:88px}
+.jdam-tl,.jdam-tr,.jdam-bl,.jdam-br{position:absolute;width:14px;height:14px}
+.jdam-tl{top:0;left:4px;border-top:2px solid var(--c);border-left:2px solid var(--c)}
+.jdam-tr{top:0;right:4px;border-top:2px solid var(--c);border-right:2px solid var(--c)}
+.jdam-bl{bottom:24px;left:4px;border-bottom:2px solid var(--c);border-left:2px solid var(--c)}
+.jdam-br{bottom:24px;right:4px;border-bottom:2px solid var(--c);border-right:2px solid var(--c)}
+.jdam-st,.jdam-dt{position:absolute;left:50%;transform:translateX(-50%);font-size:9px;white-space:nowrap;font-weight:700;color:var(--c);text-shadow:0 0 5px var(--cg)}
+.jdam-st{bottom:10px}.jdam-dt{bottom:0}
+.ret-pave{width:80px;height:92px}
+.lgb-ring{position:absolute;top:0;left:50%;transform:translateX(-50%);width:68px;height:68px;border:2px solid var(--c);border-radius:50%;box-shadow:0 0 8px var(--cg)}
+.lgb-inner{position:absolute;top:16px;left:50%;transform:translateX(-50%);width:36px;height:36px;border:1px dashed var(--c);border-radius:50%;opacity:.5}
+.lgb-h{position:absolute;top:33px;left:6px;width:68px;height:1px;background:var(--c)}
+.lgb-v{position:absolute;top:1px;left:50%;transform:translateX(-50%);width:1px;height:66px;background:var(--c)}
+.lgb-st,.lgb-dt{position:absolute;left:50%;transform:translateX(-50%);font-size:9px;white-space:nowrap;font-weight:700;color:var(--c);text-shadow:0 0 5px var(--cg)}
+.lgb-st{bottom:10px}.lgb-dt{bottom:0}
+.ret-agm{width:78px;height:90px}
+.agm-ring{position:absolute;top:0;left:50%;transform:translateX(-50%);width:64px;height:64px;border:2px solid var(--c);border-radius:50%;box-shadow:0 0 8px var(--cg)}
+.agm-spike{position:absolute;left:50%;transform:translateX(-50%);width:2px;height:10px;background:var(--c)}
+.agm-top{top:-10px}.agm-bot{top:64px}
+.agm-st,.agm-dt{position:absolute;left:50%;transform:translateX(-50%);font-size:9px;white-space:nowrap;font-weight:700;color:var(--c);text-shadow:0 0 5px var(--cg)}
+.agm-st{bottom:10px}.agm-dt{bottom:0}
+.ret-rockets{width:60px;height:74px}
+.rkt-ring{position:absolute;top:0;left:50%;transform:translateX(-50%);width:56px;height:56px;border:2px solid var(--c);border-radius:50%;box-shadow:0 0 7px var(--cg)}
+.rkt-dot{position:absolute;top:23px;left:50%;transform:translateX(-50%);width:8px;height:8px;border:1.5px solid var(--c);border-radius:50%}
+.rkt-stem{position:absolute;top:57px;left:50%;transform:translateX(-50%);width:2px;height:16px;background:var(--c)}
+.rwr-panel{position:absolute;bottom:36px;right:36px;display:flex;flex-direction:column;align-items:center;gap:3px}
+.rwr-title{font-size:8px;letter-spacing:.22em;opacity:.55;color:var(--c)}
+.rwr-scope{position:relative;width:78px;height:78px;border:1px solid var(--c);border-radius:50%;box-shadow:0 0 10px var(--cg),inset 0 0 5px var(--cgs)}
+.rwr-crossH{position:absolute;top:50%;left:14%;right:14%;height:1px;background:var(--c);opacity:.12;transform:translateY(-50%)}
+.rwr-crossV{position:absolute;left:50%;top:14%;bottom:14%;width:1px;background:var(--c);opacity:.12;transform:translateX(-50%)}
+.rwr-center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:5px;height:5px;background:var(--c);border-radius:50%;box-shadow:0 0 4px var(--cg);opacity:.6}
+.rwr-lbl{position:absolute;font-size:7px;font-weight:700;color:var(--c);opacity:.3}
+.rwr-N{top:4px;left:50%;transform:translateX(-50%)}.rwr-S{bottom:4px;left:50%;transform:translateX(-50%)}
+.rwr-L{left:4px;top:50%;transform:translateY(-50%)}.rwr-R{right:4px;top:50%;transform:translateY(-50%)}
+.rwr-th{position:absolute;width:0;height:0;opacity:.1}
+.rwr-th-N{top:5px;left:50%;transform:translateX(-50%);border-left:5px solid transparent;border-right:5px solid transparent;border-top:9px solid var(--c)}
+.rwr-th-S{bottom:5px;left:50%;transform:translateX(-50%) rotate(180deg);border-left:5px solid transparent;border-right:5px solid transparent;border-top:9px solid var(--c)}
+.rwr-th-L{left:5px;top:50%;transform:translateY(-50%) rotate(-90deg);border-left:5px solid transparent;border-right:5px solid transparent;border-top:9px solid var(--c)}
+.rwr-th-R{right:5px;top:50%;transform:translateY(-50%) rotate(90deg);border-left:5px solid transparent;border-right:5px solid transparent;border-top:9px solid var(--c)}
+.rwr-th.active{opacity:1;animation:rwrBlink .4s step-start infinite}
+@keyframes rwrBlink{0%,49%{opacity:1}50%,100%{opacity:.08}}
+</style>
+</head>
+<body>
+<div id="showcase">
+
+  <!-- ─ Info bar ─────────────────────────────────────────────────────────────── -->
+  <div id="info-bar">
+    <span id="scene-lbl">✈  CRUISE</span>
+    <span id="callout-txt">Speed tape · Altitude tape · Heading tape · Pitch ladder</span>
+    <span id="auto-lbl">AUTO ▸</span>
+  </div>
+
+  <!-- ─ HUD viewport ──────────────────────────────────────────────────────────── -->
+  <div id="hud-vp">
+    <div id="hud-frame">
+
+      <div id="main" class="main green">
+        <!-- Heading tape -->
+        <div class="hdg-wrap"><div id="hdg-inner"></div><div class="hdg-caret"></div></div>
+        <div class="hdg-box" id="hdg-box">000</div>
+        <!-- AOA indexer -->
+        <div class="aoa-idx">
+          <div class="aoa-seg" id="aoa-hi">◁</div>
+          <div class="aoa-seg" id="aoa-ok">●</div>
+          <div class="aoa-seg" id="aoa-lo">◁</div>
+        </div>
+        <!-- Canvases -->
+        <canvas id="spd-canvas"></canvas>
+        <!-- Speed sub-data -->
+        <div class="tape-sub tape-sub-l">
+          <div class="ts-row"><span class="ts-lbl">M </span><span class="ts-val" id="mach-val">0.00</span></div>
+          <div class="ts-row"><span class="ts-lbl">G </span><span class="ts-val" id="g-val">1.0</span></div>
+          <div class="ts-row"><span class="ts-lbl">α </span><span class="ts-val" id="aoa-val">+0.0</span></div>
+        </div>
+        <canvas id="pitch-canvas"></canvas>
+        <canvas id="alt-canvas"></canvas>
+        <!-- Alt sub-data -->
+        <div class="tape-sub tape-sub-r">
+          <div class="ts-row"><span class="ts-lbl">AGL </span><span class="ts-val" id="ralt-val">0</span></div>
+          <div class="ts-row"><span class="ts-val ts-vs" id="vs-val">+0</span><span class="ts-lbl"> FPM</span></div>
+        </div>
+        <!-- Weapon panel -->
+        <div class="wpn-panel">
+          <div class="wpn-name" id="wpn-name">SELECT WEAPON</div>
+          <div class="wpn-detail">
+            <span class="wpn-sub" id="wpn-sub"></span>
+            <span class="wpn-lock" id="wpn-lock"></span>
+            <span class="wpn-dist" id="wpn-dist"></span>
+          </div>
+        </div>
+        <!-- Systems -->
+        <div class="sys-panel">
+          <div class="sys-row"><span class="sys-lbl">FUEL</span><div class="sys-bar-w"><div class="sys-bar" id="fuel-bar"></div></div><span class="sys-pct" id="fuel-pct">100%</span></div>
+          <div class="sys-row"><span class="sys-lbl">ENG</span><div class="sys-bar-w"><div class="sys-bar" id="eng-bar"></div></div><span class="sys-pct" id="eng-pct">100%</span></div>
+        </div>
+        <!-- Status -->
+        <div class="status-panel">
+          <div id="gear-disp" class="status-item">GEAR ▪ RETRACTED</div>
+          <div id="vtol-disp" class="status-item" style="display:none">VTOL ▪ INACTIVE</div>
+        </div>
+        <!-- Warnings -->
+        <div class="warn-col">
+          <div class="w-item w-urgent  warn-fast"  id="w-stall">STALL</div>
+          <div class="w-item w-urgent  warn-blink" id="w-altit">PULL UP</div>
+          <div class="w-item w-urgent  warn-fast"  id="w-highg">HIGH G</div>
+          <div class="w-item w-caution warn-blink" id="w-ovspd">OVERSPD</div>
+          <div class="w-item w-caution warn-slow"  id="w-eng">ENGINE</div>
+          <div class="w-item w-caution warn-slow"  id="w-fuel">BINGO</div>
+        </div>
+        <div class="warn-missile warn-fast" id="w-miss">⚠ MISSILE</div>
+        <!-- Reticles -->
+        <div class="ret ret-gun"     id="ret-gun"><div class="gun-h"></div><div class="gun-v"></div><div class="gun-ring"></div></div>
+        <div class="ret ret-cannon"  id="ret-cannon"><div class="cannon-ring"></div><div class="cannon-dot"></div><div class="cannon-stem"></div></div>
+        <div class="ret ret-miss"    id="ret-miss"><div class="miss-ase"></div><div class="miss-diamond" id="miss-diamond"></div><div class="miss-label" id="miss-label"></div></div>
+        <div class="ret ret-jdam"    id="ret-jdam"><div class="jdam-tl"></div><div class="jdam-tr"></div><div class="jdam-bl"></div><div class="jdam-br"></div><div class="jdam-st" id="jdam-st">NO DESIG</div><div class="jdam-dt" id="jdam-dt"></div></div>
+        <div class="ret ret-pave"    id="ret-pave"><div class="lgb-ring"></div><div class="lgb-inner"></div><div class="lgb-h"></div><div class="lgb-v"></div><div class="lgb-st" id="lgb-st">LASER</div><div class="lgb-dt" id="lgb-dt"></div></div>
+        <div class="ret ret-agm"     id="ret-agm"><div class="agm-ring"></div><div class="agm-spike agm-top"></div><div class="agm-spike agm-bot"></div><div class="agm-st" id="agm-st">SEARCHING</div><div class="agm-dt" id="agm-dt"></div></div>
+        <div class="ret ret-rockets" id="ret-rockets"><div class="rkt-ring"></div><div class="rkt-dot"></div><div class="rkt-stem"></div></div>
+        <!-- RWR -->
+        <div class="rwr-panel">
+          <div class="rwr-title">RWR</div>
+          <div class="rwr-scope">
+            <div class="rwr-crossH"></div><div class="rwr-crossV"></div><div class="rwr-center"></div>
+            <span class="rwr-lbl rwr-N">F</span><span class="rwr-lbl rwr-S">A</span>
+            <span class="rwr-lbl rwr-L">L</span><span class="rwr-lbl rwr-R">R</span>
+            <div class="rwr-th rwr-th-N" id="rwr-front"></div>
+            <div class="rwr-th rwr-th-S" id="rwr-rear"></div>
+            <div class="rwr-th rwr-th-L" id="rwr-left"></div>
+            <div class="rwr-th rwr-th-R" id="rwr-right"></div>
+          </div>
+        </div>
+      </div><!-- /main -->
+
+    </div><!-- /hud-frame -->
+  </div><!-- /hud-vp -->
+
+  <!-- ─ Control panel ─────────────────────────────────────────────────────────── -->
+  <div id="ctrl">
+    <div class="cp-row">
+      <span class="cp-lbl">SCENARIO</span>
+      <button class="btn on" id="btn-cruise"   onclick="setScene('cruise')"  >✈ CRUISE</button>
+      <button class="btn"    id="btn-bank"     onclick="setScene('bank')"    >↻ BANK</button>
+      <button class="btn"    id="btn-seek"     onclick="setScene('seek')"    >◎ AIM-9X SEEK</button>
+      <button class="btn"    id="btn-highg"    onclick="setScene('highg')"   >⬆ HIGH-G</button>
+      <button class="btn"    id="btn-jdam"     onclick="setScene('jdam')"    >▼ JDAM ATTACK</button>
+      <button class="btn"    id="btn-rwr"      onclick="setScene('rwr')"     >⚠ RWR THREAT</button>
+      <button class="btn"    id="btn-emergency"onclick="setScene('emergency')">⚡ EMERGENCY</button>
+      <button class="btn"    id="btn-stall"    onclick="setScene('stall')"   >⚠ STALL</button>
+      <div class="sep"></div>
+      <button class="btn snd" onclick="toggleAuto()" id="btn-auto">AUTO ▸▸</button>
+      <span id="audio-tip">🔊 click to unlock audio</span>
+    </div>
+    <div class="cp-row">
+      <span class="cp-lbl">WEAPON</span>
+      <button class="btn" onclick="demoWeapon('none')"       >— NONE</button>
+      <button class="btn" onclick="demoWeapon('machinegun')" >M61 GUN</button>
+      <button class="btn" onclick="demoWeapon('missiles')"   >AIM-9X</button>
+      <button class="btn" onclick="demoWeapon('missiles2')"  >AIM-120</button>
+      <button class="btn" onclick="demoWeapon('agm')"        >AGM-88 HARM</button>
+      <button class="btn" onclick="demoWeapon('paveway')"    >GBU-12</button>
+      <button class="btn" onclick="demoWeapon('jdam_wp')"    >JDAM</button>
+      <button class="btn" onclick="demoWeapon('rockets')"    >LAU-61</button>
+      <div class="sep"></div>
+      <span class="cp-lbl">THEME</span>
+      <button class="btn t0 on" id="th-green"  onclick="switchTheme('green')" >● GREEN</button>
+      <button class="btn t1"    id="th-orange" onclick="switchTheme('orange')">● ORANGE</button>
+      <button class="btn t2"    id="th-red"    onclick="switchTheme('red')"   >● RED</button>
+      <button class="btn t3"    id="th-blue"   onclick="switchTheme('blue')"  >● BLUE</button>
+    </div>
+    <div class="cp-row">
+      <span class="cp-lbl">WARN TEST</span>
+      <button class="btn urg"  onclick="toggleWarn('stall')"    id="tw-stall"    >STALL</button>
+      <button class="btn urg"  onclick="toggleWarn('altitude')" id="tw-altitude" >PULL UP</button>
+      <button class="btn urg"  onclick="toggleWarn('highg')"    id="tw-highg"    >HIGH G</button>
+      <button class="btn caut" onclick="toggleWarn('overspeed')"id="tw-overspeed">OVERSPD</button>
+      <button class="btn caut" onclick="toggleWarn('engine')"   id="tw-engine"   >ENGINE</button>
+      <button class="btn caut" onclick="toggleWarn('fuel')"     id="tw-fuel"     >BINGO</button>
+      <button class="btn urg"  onclick="toggleWarn('missile')"  id="tw-missile"  >MISSILE ⚠</button>
+      <div class="sep"></div>
+      <span class="cp-lbl">SOUNDS</span>
+      <button class="btn snd" onclick="testSnd('stall')"    >STALL BUZZ</button>
+      <button class="btn snd" onclick="testSnd('altitude')" >PULL UP BEEP</button>
+      <button class="btn snd" onclick="testSnd('missile')"  >MISSILE WARBLE</button>
+      <button class="btn snd" onclick="testSnd('scanning')" >RWR CHIRP</button>
+      <button class="btn snd" onclick="testSnd('locked')"   >SEEKER GROWL</button>
+      <button class="btn snd" onclick="testSnd('rwrLaunch')">RWR FAST PRF</button>
+      <button class="btn snd" onclick="SND.stopAll()"       >■ STOP ALL</button>
+    </div>
+  </div>
+
+</div><!-- /showcase -->
+
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script>
+/* ════════════════════════════════════════════════════════════════════════════
+   HUD ENGINE  (adapted from script.js — exposes window.HUD)
+   ════════════════════════════════════════════════════════════════════════════ */
+const DPR=Math.min(window.devicePixelRatio||1,2);
+const PITCH_W=500,PITCH_H=420,TAPE_W=80,TAPE_H=300;
+
+function setupCanvas(id,w,h){
+    const el=document.getElementById(id);
+    el.width=w*DPR;el.height=h*DPR;
+    el.style.width=w+'px';el.style.height=h+'px';
+    const ctx=el.getContext('2d');ctx.scale(DPR,DPR);return ctx;
+}
+const pitchCtx=setupCanvas('pitch-canvas',PITCH_W,PITCH_H);
+const spdCtx=setupCanvas('spd-canvas',TAPE_W,TAPE_H);
+const altCtx=setupCanvas('alt-canvas',TAPE_H,TAPE_H); // slight wider alt
+
+// Position canvases inside 1920-frame
+document.getElementById('pitch-canvas').style.cssText+='position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);';
+document.getElementById('spd-canvas').style.cssText  +='position:absolute;top:50%;left:calc(50% - 310px);transform:translateY(-50%);';
+document.getElementById('alt-canvas').style.cssText  +='position:absolute;top:50%;left:calc(50% + 230px);transform:translateY(-50%);';
+
+// ── Colour ──────────────────────────────────────────────────────────────────
+const PAL={green:'#00e64b',orange:'#ff9400',red:'#eb2020',blue:'#00c3ff'};
+let hudColor=PAL.green;
+function setThemeColor(n){hudColor=PAL[n]||PAL.green;document.getElementById('main').className='main '+(n||'green');}
+
+// ── Web Audio Engine ────────────────────────────────────────────────────────
+const SND=(()=>{
+    let ac=null; const active={};
+    function ctx(){if(!ac){try{ac=new(window.AudioContext||window.webkitAudioContext)();}catch(e){return null;}}return ac;}
+    function stop(id){if(active[id]){try{active[id]();}catch(e){}delete active[id];}}
+    function stopAll(){Object.keys(active).forEach(id=>{try{active[id]();}catch(e){}});for(const k in active)delete active[k];}
+    function loop(id,beats){
+        stop(id);let alive=true,tid=null;
+        function next(i){
+            if(!alive)return;const c=ctx();if(!c)return;
+            const b=beats[i%beats.length];
+            if(b.silence){tid=setTimeout(()=>next(i+1),b.silence*1000);return;}
+            try{const o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);
+                o.type=b.wave||'sine';o.frequency.setValueAtTime(b.f,c.currentTime);
+                const v=b.vol||.22;g.gain.setValueAtTime(v,c.currentTime);
+                if(b.decay)g.gain.exponentialRampToValueAtTime(.0001,c.currentTime+b.t);
+                o.start(c.currentTime);o.stop(c.currentTime+b.t);}catch(e){}
+            tid=setTimeout(()=>next(i+1),b.t*1000);}
+        active[id]=()=>{alive=false;if(tid)clearTimeout(tid);};next(0);}
+    function warble(id,carrier,modRate,modDepth,vol,wave){
+        stop(id);const c=ctx();if(!c)return;
+        try{const mod=c.createOscillator(),mg=c.createGain(),osc=c.createOscillator(),g=c.createGain();
+            mod.frequency.value=modRate;mg.gain.value=modDepth;mod.connect(mg);mg.connect(osc.frequency);
+            osc.type=wave||'sawtooth';osc.frequency.value=carrier;g.gain.value=vol||.20;
+            osc.connect(g);g.connect(c.destination);mod.start();osc.start();
+            active[id]=()=>{try{mod.stop();osc.stop();g.disconnect();}catch(e){}}}catch(e){}}
+    return{stop,stopAll,loop,warble};
+})();
+window.SND=SND; // expose for the STOP ALL button
+
+const WARN_SND={
+    stall    :()=>SND.loop('stall',[{f:1050,t:.06,wave:'square',vol:.28},{silence:.04},{f:1050,t:.06,wave:'square',vol:.28},{silence:.04},{f:1050,t:.06,wave:'square',vol:.28},{silence:.18}]),
+    altitude :()=>SND.loop('altitude',[{f:880,t:.17,vol:.25},{silence:.07},{f:880,t:.17,vol:.25},{silence:.07},{f:880,t:.17,vol:.25},{silence:.52}]),
+    highg    :()=>SND.loop('highg',[{f:110,t:.26,wave:'square',vol:.18},{silence:.13}]),
+    overspeed:()=>SND.loop('overspeed',[{f:620,t:.22,vol:.22},{silence:.16}]),
+    fuel     :()=>SND.loop('fuel',[{f:440,t:.20,vol:.22},{silence:.09},{f:440,t:.20,vol:.22},{silence:.09},{f:440,t:.20,vol:.22},{silence:1.1}]),
+    engine   :()=>SND.loop('engine',[{f:185,t:.34,wave:'sawtooth',vol:.18},{silence:.44},{f:155,t:.20,wave:'sawtooth',vol:.14},{silence:.68}]),
+    missile  :()=>SND.warble('missile',950,22,480,.30,'sawtooth'),
+};
+const LOCK_SND={
+    scanning :()=>SND.loop('lock',[{f:550,t:.083,vol:.20,decay:true},{f:520,t:.083,vol:.20,decay:true},{f:490,t:.083,vol:.20,decay:true},{f:470,t:.083,vol:.20,decay:true},{silence:2.5}]),
+    locked   :()=>SND.warble('lock',600,40,280,.18,'sawtooth'),
+    rwrLock  :()=>SND.loop('rwr',[{f:455,t:.25,wave:'sine',vol:.24},{f:555,t:.25,wave:'sine',vol:.24}]),
+    rwrLaunch:()=>SND.loop('rwr',[{f:455,t:.10,wave:'sine',vol:.28},{f:555,t:.10,wave:'sine',vol:.28}]),
+};
+window.testSnd=function(k){SND.stopAll();if(LOCK_SND[k])LOCK_SND[k]();else if(WARN_SND[k])WARN_SND[k]();};
+
+// ── Heading tape ────────────────────────────────────────────────────────────
+(function(){
+    const inner=document.getElementById('hdg-inner');
+    const L={0:'N',30:'030',60:'060',90:'E',120:'120',150:'150',180:'S',210:'210',240:'240',270:'W',300:'300',330:'330'};
+    for(let cp=0;cp<3;cp++)for(let d=0;d<360;d+=5){
+        const t=document.createElement('div');
+        t.className='hm'+(d%30===0?' cardinal':d%10===0?' major':'');
+        t.style.left=(cp*1800+d*5)+'px';
+        if(d%30===0){const s=document.createElement('span');s.textContent=L[d];t.appendChild(s);}
+        inner.appendChild(t);}
+})();
+function updateHeading(h){
+    document.getElementById('hdg-inner').style.transform='translateX('+(150-1800-h*5)+'px)';
+    document.getElementById('hdg-box').textContent=String(h).padStart(3,'0');
+}
+
+// ── Pitch canvas ────────────────────────────────────────────────────────────
+const PPD=13.5,CX=PITCH_W/2,CY=PITCH_H/2,GAP=24,LMAJ=78,LMIN=50;
+function drawPitch(pitch,roll,aoa){
+    const c=pitchCtx;c.clearRect(0,0,PITCH_W,PITCH_H);
+    c.font='11px "Share Tech Mono",monospace';c.textAlign='left';
+    drawRollArc(c,CX,CY,roll);
+    c.save();c.translate(CX,CY);c.rotate(-roll*Math.PI/180);c.translate(-CX,-CY);
+    const hY=CY+pitch*PPD;
+    c.save();c.beginPath();c.rect(0,hY,PITCH_W,PITCH_H-hY+60);c.clip();
+    c.fillStyle='rgba(0,0,0,.07)';c.fillRect(0,0,PITCH_W,PITCH_H);c.restore();
+    c.strokeStyle=hudColor;c.lineWidth=1.6;c.setLineDash([]);c.globalAlpha=1;
+    c.beginPath();c.moveTo(0,hY);c.lineTo(PITCH_W,hY);c.stroke();
+    for(let deg=-90;deg<=90;deg+=5){
+        if(deg===0)continue;const y=CY-(deg-pitch)*PPD;
+        if(y<0||y>PITCH_H)continue;
+        const isMaj=deg%10===0,isAbove=deg>0,hLen=isMaj?LMAJ:LMIN;
+        c.strokeStyle=hudColor;c.lineWidth=1.2;c.globalAlpha=isMaj?.95:.60;
+        c.setLineDash(isAbove?[]:[5,4]);
+        c.beginPath();c.moveTo(CX-GAP,y);c.lineTo(CX-GAP-hLen,y);c.stroke();
+        c.beginPath();c.moveTo(CX+GAP,y);c.lineTo(CX+GAP+hLen,y);c.stroke();
+        if(isMaj){const td=isAbove?9:-9;
+            c.setLineDash([]);c.lineWidth=1.2;c.globalAlpha=.9;
+            c.beginPath();c.moveTo(CX-GAP-hLen,y);c.lineTo(CX-GAP-hLen,y-td);c.stroke();
+            c.beginPath();c.moveTo(CX+GAP+hLen,y);c.lineTo(CX+GAP+hLen,y-td);c.stroke();
+            c.globalAlpha=1;c.fillStyle=hudColor;
+            c.textAlign='right';c.fillText(Math.abs(deg),CX-GAP-hLen-4,y+4);
+            c.textAlign='left';c.fillText(Math.abs(deg),CX+GAP+hLen+4,y+4);}}
+    c.restore();
+    const fY=CY+aoa*PPD;drawFPM(c,CX,fY);drawWaterline(c,CX,CY);c.globalAlpha=1;
+}
+function drawFPM(c,x,y){const R=9;
+    c.strokeStyle=hudColor;c.lineWidth=1.5;c.setLineDash([]);c.globalAlpha=1;
+    c.beginPath();c.arc(x,y,R,0,Math.PI*2);c.stroke();
+    c.beginPath();c.moveTo(x-R,y);c.lineTo(x-R-18,y);c.stroke();
+    c.beginPath();c.moveTo(x+R,y);c.lineTo(x+R+18,y);c.stroke();
+    c.beginPath();c.moveTo(x,y-R);c.lineTo(x,y-R-11);c.stroke();}
+function drawWaterline(c,x,y){
+    c.strokeStyle=hudColor;c.lineWidth=1.5;c.setLineDash([]);c.globalAlpha=.55;
+    c.beginPath();c.moveTo(x-48,y);c.lineTo(x-14,y);c.stroke();
+    c.beginPath();c.moveTo(x+14,y);c.lineTo(x+48,y);c.stroke();
+    c.globalAlpha=.75;c.beginPath();c.moveTo(x-9,y-11);c.lineTo(x,y);c.lineTo(x+9,y-11);c.stroke();c.globalAlpha=1;}
+function drawRollArc(c,cx,cy,roll){
+    const R=128,aY=cy-168,toR=d=>(d-90)*Math.PI/180;
+    c.strokeStyle=hudColor;c.lineWidth=1;c.setLineDash([]);c.globalAlpha=.75;
+    c.beginPath();c.arc(cx,aY+R,R,toR(-65),toR(65));c.stroke();
+    [10,20,30,45,60].forEach(d=>{[-d,d].forEach(ang=>{
+        const a=toR(ang),x1=cx+R*Math.cos(a),y1=(aY+R)+R*Math.sin(a),
+              len=Math.abs(ang)===30||Math.abs(ang)===60?9:5,
+              x2=cx+(R-len)*Math.cos(a),y2=(aY+R)+(R-len)*Math.sin(a);
+        c.beginPath();c.moveTo(x1,y1);c.lineTo(x2,y2);c.stroke();});});
+    c.beginPath();c.moveTo(cx,aY+R-R);c.lineTo(cx,aY+R-R-8);c.stroke();
+    c.globalAlpha=1;const pa=toR(roll),px=cx+R*Math.cos(pa),py=(aY+R)+R*Math.sin(pa),
+    ia=Math.atan2((aY+R)-py,cx-px);c.fillStyle=hudColor;
+    c.beginPath();c.moveTo(px,py);
+    c.lineTo(px+6*Math.cos(ia+.45),py+6*Math.sin(ia+.45));
+    c.lineTo(px+6*Math.cos(ia-.45),py+6*Math.sin(ia-.45));
+    c.closePath();c.fill();}
+
+// ── Speed tape ──────────────────────────────────────────────────────────────
+const SS=2.4;
+function drawSpeedTape(kts){
+    const c=spdCtx,w=TAPE_W,h=TAPE_H,cy=h/2;c.clearRect(0,0,w,h);
+    c.strokeStyle=hudColor;c.fillStyle=hudColor;c.lineWidth=1.2;c.setLineDash([]);
+    c.beginPath();c.moveTo(w-1,0);c.lineTo(w-1,h);c.stroke();
+    const vis=cy/SS+10,lo=Math.max(0,Math.floor((kts-vis)/10)*10),hi=Math.ceil((kts+vis)/10)*10;
+    c.font='12px "Share Tech Mono",monospace';
+    for(let s=lo;s<=hi;s+=10){const y=cy-(s-kts)*SS,iM=s%50===0,tl=iM?14:7;
+        c.globalAlpha=iM?1:.45;c.beginPath();c.moveTo(w-1,y);c.lineTo(w-1-tl,y);c.stroke();
+        if(iM&&s>=0){c.globalAlpha=.80;c.textAlign='right';c.fillText(s,w-19,y+4);}}
+    c.globalAlpha=1;c.fillStyle=hudColor+'1a';c.fillRect(0,cy-15,w-2,30);
+    c.strokeStyle=hudColor;c.lineWidth=1.5;c.strokeRect(0,cy-15,w-2,30);
+    c.fillStyle=hudColor;c.font='bold 17px "Share Tech Mono",monospace';c.textAlign='center';
+    c.fillText(Math.round(kts),(w-2)/2,cy+6);}
+
+// ── Altitude tape ───────────────────────────────────────────────────────────
+const AS=0.038;
+function drawAltTape(feet){
+    const c=altCtx,w=TAPE_W,h=TAPE_H,cy=h/2;c.clearRect(0,0,w,h);
+    c.strokeStyle=hudColor;c.fillStyle=hudColor;c.lineWidth=1.2;c.setLineDash([]);
+    c.beginPath();c.moveTo(1,0);c.lineTo(1,h);c.stroke();
+    const vis=cy/AS+500,lo=Math.max(0,Math.floor((feet-vis)/100)*100),hi=Math.ceil((feet+vis)/100)*100;
+    c.font='11px "Share Tech Mono",monospace';
+    for(let a=lo;a<=hi;a+=100){const y=cy-(a-feet)*AS,iM=a%500===0,tl=iM?14:7;
+        c.globalAlpha=iM?1:.45;c.beginPath();c.moveTo(1,y);c.lineTo(1+tl,y);c.stroke();
+        if(iM){c.globalAlpha=.80;c.textAlign='left';c.fillText(a,18,y+4);}}
+    c.globalAlpha=1;c.fillStyle=hudColor+'1a';c.fillRect(2,cy-15,w-2,30);
+    c.strokeStyle=hudColor;c.lineWidth=1.5;c.strokeRect(2,cy-15,w-2,30);
+    c.fillStyle=hudColor;c.font='bold 16px "Share Tech Mono",monospace';c.textAlign='center';
+    c.fillText(Math.round(feet),2+(w-2)/2,cy+6);}
+
+// ── Warning handler ─────────────────────────────────────────────────────────
+const WID={stall:'#w-stall',altitude:'#w-altit',missile:'#w-miss',highg:'#w-highg',overspeed:'#w-ovspd',engine:'#w-eng',fuel:'#w-fuel'};
+const warnActive={};
+function handleWarn(action,mode){
+    const el=$(WID[action]);if(!el.length)return;
+    if(mode==='start'&&!warnActive[action]){warnActive[action]=true;el.show();if(WARN_SND[action])WARN_SND[action]();}
+    else if(mode==='end'&&warnActive[action]){delete warnActive[action];el.hide();SND.stop(action==='missile'?'missile':action);}}
+function stopAllWarnings(){Object.keys(WID).forEach(k=>{$(WID[k]).hide();delete warnActive[k];});}
+
+// ── Lock ────────────────────────────────────────────────────────────────────
+let prevLock=-1,rwrWas=false;
+function handleLock(ls){
+    if(ls!==prevLock){prevLock=ls;SND.stop('lock');
+        if(ls===1)LOCK_SND.scanning();else if(ls===2)LOCK_SND.locked();}}
+function handleRWR(d){
+    const f=!!d.rwrFront,r=!!d.rwrRear,l=!!d.rwrLeft,ri=!!d.rwrRight,any=f||r||l||ri;
+    document.getElementById('rwr-front').className='rwr-th rwr-th-N'+(f?' active':'');
+    document.getElementById('rwr-rear' ).className='rwr-th rwr-th-S'+(r?' active':'');
+    document.getElementById('rwr-left' ).className='rwr-th rwr-th-L'+(l?' active':'');
+    document.getElementById('rwr-right').className='rwr-th rwr-th-R'+(ri?' active':'');
+    if(any&&!rwrWas){LOCK_SND.rwrLaunch();rwrWas=true;}else if(!any&&rwrWas){SND.stop('rwr');rwrWas=false;}}
+
+// ── Weapon display ──────────────────────────────────────────────────────────
+const RETS=['#ret-gun','#ret-cannon','#ret-miss','#ret-jdam','#ret-pave','#ret-agm','#ret-rockets'];
+function posRet(el,x,y){el.css({left:(x*100)+'%',top:(y*100)+'%'});}
+function updateWeapon(d){
+    if(!d.hasWeapon||!d.weaponType||d.weaponType==='none'){
+        $('#wpn-name').text('SELECT WEAPON');$('#wpn-sub,#wpn-lock,#wpn-dist').text('');
+        RETS.forEach(s=>$(s).hide());handleLock(0);return;}
+    $('#wpn-name').text(d.weaponName||d.weaponType.toUpperCase());$('#wpn-sub').text(d.weaponSub||'');
+    handleLock(d.lockState||0);
+    const ll=['','◈ SCANNING','◉ LOCKED'],le=document.getElementById('wpn-lock');
+    le.textContent=ll[d.lockState||0]||'';le.style.color=d.lockState===2?'#ff4040':'#ffd000';
+    const dist=d.hasLock===1&&d.targetDist?d.targetDist+' FT':'';$('#wpn-dist').text(dist);
+    RETS.forEach(s=>$(s).hide());
+    const x=d.x_target,y=d.y_target,lk=d.hasLock===1;
+    switch(d.weaponType){
+        case 'machinegun':posRet($('#ret-gun'),x,y);$('#ret-gun').show();break;
+        case 'cannon':posRet($('#ret-cannon'),x,y);$('#ret-cannon').show();break;
+        case 'missiles':posRet($('#ret-miss'),x,y);$('#ret-miss').show();
+            if(lk){$('#miss-diamond').show();$('#miss-label').text(dist);}else{$('#miss-diamond').hide();$('#miss-label').text('');}break;
+        case 'jdam':posRet($('#ret-jdam'),x,y);$('#ret-jdam').show();$('#jdam-st').text(lk?'GPS LOCK':'NO DESIG');$('#jdam-dt').text(lk?dist:'');break;
+        case 'paveway':posRet($('#ret-pave'),x,y);$('#ret-pave').show();$('#lgb-st').text(lk?'LASER LOCK':'LASER');$('#lgb-dt').text(lk?dist:'');break;
+        case 'agm':posRet($('#ret-agm'),x,y);$('#ret-agm').show();$('#agm-st').text(lk?'TRACKING':'SEARCHING');$('#agm-dt').text(lk?dist:'');break;
+        case 'rockets':posRet($('#ret-rockets'),x,y);$('#ret-rockets').show();break;}}
+
+// ── Full HUD update ─────────────────────────────────────────────────────────
+function hudUpdate(d){
+    drawPitch(d.pitch||0,d.roll||0,d.aoa||0);
+    drawSpeedTape(d.speed||0);drawAltTape(d.altitude||0);updateHeading(d.yaw||0);
+    updateWeapon(d);
+    const mach=d.mach||0,g=d.gForce||1,aoa=d.aoa||0,vs=d.vertSpeed||0;
+    document.getElementById('mach-val').textContent=mach.toFixed(2);
+    const ge=document.getElementById('g-val');ge.textContent=g.toFixed(1);
+    ge.className='ts-val'+(Math.abs(g)>=8?' val-crit':Math.abs(g)>=5.5?' val-warn':'');
+    document.getElementById('aoa-val').textContent=(aoa>=0?'+':'')+aoa.toFixed(1)+'°';
+    const ve=document.getElementById('vs-val');ve.textContent=(vs>=0?'▲':'▼')+' '+Math.abs(Math.round(vs));
+    ve.className='ts-val ts-vs'+(Math.abs(vs)>3000?' val-warn':'');
+    document.getElementById('ralt-val').textContent=Math.max(0,Math.floor((d.rawAlt||0)*3.28084));
+    const fl=Math.max(0,Math.min(100,d.fuelLevel||0)),fb=document.getElementById('fuel-bar');
+    fb.style.width=fl+'%';fb.className='sys-bar'+(fl<10?' bar-crit':fl<20?' bar-warn':'');
+    document.getElementById('fuel-pct').textContent=fl+'%';
+    const eh=Math.max(0,Math.min(1000,d.engineHealth||1000)),ep=Math.floor(eh/10),eb=document.getElementById('eng-bar');
+    eb.style.width=ep+'%';eb.className='sys-bar'+(ep<30?' bar-crit':ep<50?' bar-warn':'');
+    document.getElementById('eng-pct').textContent=ep+'%';
+    document.getElementById('aoa-hi').className='aoa-seg'+(aoa>18?' hi':'');
+    document.getElementById('aoa-ok').className='aoa-seg'+(aoa>=8&&aoa<=18?' ok':'');
+    document.getElementById('aoa-lo').className='aoa-seg'+(aoa<8&&aoa>0?' lo':'');
+    const ge2=document.getElementById('gear-disp'),ve2=document.getElementById('vtol-disp');
+    ge2.style.display=d.gear==='STATIC'?'none':'';
+    if(d.gear!=='STATIC')ge2.textContent='GEAR ▪ '+d.gear;
+    ve2.style.display=d.hasVtol?'':'none';
+    handleRWR(d);}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   SHOWCASE ANIMATION
+   ════════════════════════════════════════════════════════════════════════════ */
+
+// ── Scale HUD frame to fit viewport ─────────────────────────────────────────
+function scaleHUD(){
+    const vp=document.getElementById('hud-vp');
+    const s=vp.clientWidth/1920;
+    const fr=document.getElementById('hud-frame');
+    fr.style.transform='scale('+s+')';
+    vp.style.height=(1080*s)+'px';}
+window.addEventListener('resize',scaleHUD);scaleHUD();
+
+// ── Scene definitions ────────────────────────────────────────────────────────
+const SCENES={
+cruise:{
+    label:'✈ CRUISE  —  18,000ft · 452kts · M 0.76',
+    callout:'Speed tape (left) · Altitude tape (right) · Heading tape scrolls · Pitch ladder 2° nose-up · FPM on horizon',
+    warnings:[],lockSeq:false,
+    s:{speed:452,altitude:18000,yaw:270,pitch:2,roll:0,aoa:2,mach:.76,gForce:1.0,vertSpeed:50,
+       rawAlt:4900,fuelLevel:82,engineHealth:1000,gear:'RETRACTED',hasVtol:false,vtol:'INACTIVE',
+       hasWeapon:false,weaponType:'none',weaponName:'',weaponSub:'',lockState:0,hasLock:0,
+       targetDist:0,x_target:.5,y_target:.45,rwrFront:false,rwrRear:false,rwrLeft:false,rwrRight:false}},
+bank:{
+    label:'↻ BANKED TURN  —  45° right bank · AOA 10°',
+    callout:'Roll indicator pointer moves to 45° · Pitch ladder ROTATES with aircraft bank · FPM displaced below nose by AOA',
+    warnings:[],lockSeq:false,
+    s:{speed:410,altitude:16500,yaw:315,pitch:12,roll:45,aoa:10,mach:.69,gForce:2.8,vertSpeed:1100,
+       rawAlt:4000,fuelLevel:76,engineHealth:1000,gear:'RETRACTED',hasVtol:false,vtol:'INACTIVE',
+       hasWeapon:true,weaponType:'missiles',weaponName:'AIM-9X SIDEWINDER',weaponSub:'AAM · IMAGING IR SEEKER',
+       lockState:1,hasLock:0,targetDist:0,x_target:.5,y_target:.45,rwrFront:false,rwrRear:false,rwrLeft:false,rwrRight:false}},
+seek:{
+    label:'◎ AIM-9X LOCK SEQUENCE  —  Scan → Acquire',
+    callout:'ALR-67 scan chirp (550→470Hz) every 2.5s · After 3s: seeker acquires → AIM-9 FM growl · Lock diamond appears',
+    warnings:[],lockSeq:true,
+    s:{speed:390,altitude:15000,yaw:040,pitch:5,roll:20,aoa:5,mach:.66,gForce:2.2,vertSpeed:0,
+       rawAlt:3600,fuelLevel:70,engineHealth:1000,gear:'RETRACTED',hasVtol:false,vtol:'INACTIVE',
+       hasWeapon:true,weaponType:'missiles',weaponName:'AIM-9X SIDEWINDER',weaponSub:'AAM · IMAGING IR SEEKER',
+       lockState:1,hasLock:0,targetDist:6200,x_target:.5,y_target:.42,rwrFront:false,rwrRear:false,rwrLeft:false,rwrRight:false}},
+highg:{
+    label:'⬆ HIGH-G PULL  —  8.8G · AOA 22°',
+    callout:'HIGH G warning (low square-wave tone) · G-meter turns critical red · AOA indexer upper segment (▷) lights up',
+    warnings:['highg'],lockSeq:false,
+    s:{speed:510,altitude:12000,yaw:090,pitch:28,roll:30,aoa:22,mach:.86,gForce:8.8,vertSpeed:4200,
+       rawAlt:2800,fuelLevel:65,engineHealth:1000,gear:'RETRACTED',hasVtol:false,vtol:'INACTIVE',
+       hasWeapon:false,weaponType:'none',weaponName:'',weaponSub:'',lockState:0,hasLock:0,
+       targetDist:0,x_target:.5,y_target:.45,rwrFront:false,rwrRear:false,rwrLeft:false,rwrRight:false}},
+jdam:{
+    label:'▼ JDAM ATTACK  —  Diving run · GPS lock',
+    callout:'Negative pitch lines are DASHED (F-16 spec) · JDAM bracket reticle · GPS LOCK acquired after dive established',
+    warnings:[],lockSeq:false,
+    s:{speed:490,altitude:7500,yaw:180,pitch:-18,roll:8,aoa:3,mach:.82,gForce:1.5,vertSpeed:-4800,
+       rawAlt:1800,fuelLevel:60,engineHealth:1000,gear:'RETRACTED',hasVtol:false,vtol:'INACTIVE',
+       hasWeapon:true,weaponType:'jdam',weaponName:'GBU-38 JDAM',weaponSub:'GPS GUIDED · DIRECT ATTACK',
+       lockState:2,hasLock:1,targetDist:4100,x_target:.5,y_target:.56,rwrFront:false,rwrRear:false,rwrLeft:false,rwrRight:false}},
+rwr:{
+    label:'⚠ RWR THREAT  —  Missile from AFT sector',
+    callout:'ALR-67 fast PRF (455↔555Hz 100ms) · RWR AFT sector lights up · ⚠ MISSILE warning flashes',
+    warnings:['missile'],lockSeq:false,
+    s:{speed:560,altitude:10000,yaw:140,pitch:0,roll:-15,aoa:1,mach:.95,gForce:1.0,vertSpeed:-200,
+       rawAlt:2400,fuelLevel:55,engineHealth:1000,gear:'RETRACTED',hasVtol:false,vtol:'INACTIVE',
+       hasWeapon:true,weaponType:'missiles',weaponName:'AIM-9X SIDEWINDER',weaponSub:'AAM · IMAGING IR SEEKER',
+       lockState:0,hasLock:0,targetDist:0,x_target:.5,y_target:.45,rwrFront:false,rwrRear:true,rwrLeft:false,rwrRight:false}},
+emergency:{
+    label:'⚡ EMERGENCY  —  BINGO fuel + Engine damage',
+    callout:'Triple-beep BINGO tone (440Hz) + sawtooth ENGINE growl simultaneously · Fuel bar orange · Engine bar red',
+    warnings:['fuel','engine'],lockSeq:false,
+    s:{speed:350,altitude:8000,yaw:090,pitch:4,roll:0,aoa:4,mach:.59,gForce:1.2,vertSpeed:-500,
+       rawAlt:1900,fuelLevel:7,engineHealth:285,gear:'RETRACTED',hasVtol:false,vtol:'INACTIVE',
+       hasWeapon:false,weaponType:'none',weaponName:'',weaponSub:'',lockState:0,hasLock:0,
+       targetDist:0,x_target:.5,y_target:.45,rwrFront:false,rwrRear:false,rwrLeft:false,rwrRight:false}},
+stall:{
+    label:'⚠ STALL  —  High AOA · Low speed',
+    callout:'STALL warning (1050Hz stick-shaker buzz) · FPM displaced far below gun cross (AOA=25°) · AOA indexer upper max',
+    warnings:['stall'],lockSeq:false,
+    s:{speed:88,altitude:4000,yaw:000,pitch:-2,roll:5,aoa:25,mach:.15,gForce:.8,vertSpeed:-3200,
+       rawAlt:950,fuelLevel:45,engineHealth:1000,gear:'RETRACTED',hasVtol:false,vtol:'INACTIVE',
+       hasWeapon:false,weaponType:'none',weaponName:'',weaponSub:'',lockState:0,hasLock:0,
+       targetDist:0,x_target:.5,y_target:.45,rwrFront:false,rwrRear:false,rwrLeft:false,rwrRight:false}}};
+
+// ── Interpolated state ───────────────────────────────────────────────────────
+const RATES={speed:.04,altitude:.025,yaw:.05,pitch:.09,roll:.10,aoa:.09,mach:.05,gForce:.12,
+             vertSpeed:.07,rawAlt:.02,fuelLevel:.003,engineHealth:.015};
+let cur={...SCENES.cruise.s};
+let tgt={...SCENES.cruise.s};
+let activeWarns=new Set();
+let lockTimer=0,lockSceneActive=false;
+let manualWarns=new Set(); // manually toggled via buttons
+
+function lerp(a,b,t){return a+(b-a)*t;}
+function lerpAngle(a,b,t){let d=b-a;while(d>180)d-=360;while(d<-180)d+=360;return a+d*t;}
+
+function applyScene(sId){
+    const sc=SCENES[sId];if(!sc)return;
+    tgt={...sc.s};
+    lockTimer=0;lockSceneActive=sc.lockSeq;
+    if(sc.lockSeq){tgt.lockState=1;tgt.hasLock=0;}
+
+    // Clear scene-driven warnings, apply new ones
+    activeWarns.forEach(w=>{if(!manualWarns.has(w)){handleWarn(w,'end');}});
+    activeWarns=new Set(sc.warnings);
+    activeWarns.forEach(w=>{if(!manualWarns.has(w))handleWarn(w,'start');});
+    
+    // update UI
+    document.getElementById('scene-lbl').textContent=sc.label;
+    document.getElementById('callout-txt').textContent=sc.callout;
+    document.querySelectorAll('[id^=btn-]').forEach(b=>b.classList.remove('on'));
+    const bb=document.getElementById('btn-'+sId);if(bb)bb.classList.add('on');
+}
+
+function tick(){
+    // Lerp numeric values
+    for(const k in RATES){
+        if(k==='yaw')cur.yaw=lerpAngle(cur.yaw,tgt.yaw,RATES.yaw);
+        else if(k in cur&&k in tgt)cur[k]=lerp(cur[k],tgt[k],RATES[k]);
+    }
+    // Non-numeric
+    cur.gear=tgt.gear;cur.hasVtol=tgt.hasVtol;cur.vtol=tgt.vtol;
+    cur.hasWeapon=tgt.hasWeapon;cur.weaponType=tgt.weaponType;
+    cur.weaponName=tgt.weaponName;cur.weaponSub=tgt.weaponSub;
+    cur.x_target=tgt.x_target;cur.y_target=tgt.y_target;
+    cur.rwrFront=tgt.rwrFront;cur.rwrRear=tgt.rwrRear;
+    cur.rwrLeft=tgt.rwrLeft;cur.rwrRight=tgt.rwrRight;
+
+    // Lock sequence: scan for 3s then lock
+    if(lockSceneActive){
+        lockTimer+=0.05;
+        if(lockTimer>=3.0&&cur.lockState<2){
+            cur.lockState=2;tgt.lockState=2;cur.hasLock=1;tgt.hasLock=1;
+            cur.targetDist=tgt.targetDist;
+        }
+    } else {
+        cur.lockState=tgt.lockState;cur.hasLock=tgt.hasLock;cur.targetDist=tgt.targetDist;
+    }
+
+    hudUpdate(cur);}
+
+setInterval(tick,50);
+
+// ── Auto-advance ─────────────────────────────────────────────────────────────
+const sceneOrder=['cruise','bank','seek','highg','jdam','rwr','emergency','stall'];
+let sceneIdx=0,autoMode=true,autoTimer=0;
+setInterval(()=>{
+    if(!autoMode)return;
+    autoTimer+=0.25;
+    if(autoTimer>=8){autoTimer=0;sceneIdx=(sceneIdx+1)%sceneOrder.length;applyScene(sceneOrder[sceneIdx]);}
+},250);
+applyScene('cruise');
+
+window.setScene=function(id){autoMode=false;document.getElementById('btn-auto').classList.remove('on');applyScene(id);};
+window.toggleAuto=function(){autoMode=!autoMode;document.getElementById('btn-auto').classList.toggle('on',autoMode);
+    if(autoMode){autoTimer=0;document.getElementById('auto-lbl').textContent='AUTO ▸';}
+    else document.getElementById('auto-lbl').textContent='MANUAL';};
+
+// ── Weapon demo ──────────────────────────────────────────────────────────────
+const WEAPON_DEFS={
+    none:{hasWeapon:false,weaponType:'none',weaponName:'',weaponSub:'',lockState:0,hasLock:0,targetDist:0},
+    machinegun:{hasWeapon:true,weaponType:'machinegun',weaponName:'M61A1 VULCAN',weaponSub:'20MM · 6000 RPM',lockState:0,hasLock:0,targetDist:0},
+    missiles:{hasWeapon:true,weaponType:'missiles',weaponName:'AIM-9X SIDEWINDER',weaponSub:'AAM · IMAGING IR SEEKER',lockState:1,hasLock:0,targetDist:0},
+    missiles2:{hasWeapon:true,weaponType:'missiles',weaponName:'AIM-120 AMRAAM',weaponSub:'AAM · ACTIVE RADAR',lockState:1,hasLock:0,targetDist:0},
+    agm:{hasWeapon:true,weaponType:'agm',weaponName:'AGM-88C HARM',weaponSub:'ARM · PASSIVE RADAR SEEKER',lockState:1,hasLock:0,targetDist:0},
+    paveway:{hasWeapon:true,weaponType:'paveway',weaponName:'GBU-12 PAVEWAY II',weaponSub:'LGB · LASER GUIDED BOMB',lockState:2,hasLock:1,targetDist:3500},
+    jdam_wp:{hasWeapon:true,weaponType:'jdam',weaponName:'GBU-38 JDAM',weaponSub:'GPS GUIDED · DIRECT ATTACK',lockState:2,hasLock:1,targetDist:5200},
+    rockets:{hasWeapon:true,weaponType:'rockets',weaponName:'LAU-61 ROCKET POD',weaponSub:'UNGUIDED · 70MM FFAR',lockState:0,hasLock:0,targetDist:0},
+};
+window.demoWeapon=function(k){
+    const w=WEAPON_DEFS[k];if(!w)return;
+    Object.assign(tgt,w);Object.assign(cur,w);lockSceneActive=false;
+};
+
+// ── Manual warning toggles ───────────────────────────────────────────────────
+window.toggleWarn=function(k){
+    const btnId='tw-'+k;const btn=document.getElementById(btnId);
+    if(manualWarns.has(k)){manualWarns.delete(k);handleWarn(k,'end');if(btn)btn.classList.remove('on');}
+    else{manualWarns.add(k);handleWarn(k,'start');if(btn)btn.classList.add('on');}};
+
+// ── Theme ────────────────────────────────────────────────────────────────────
+window.switchTheme=function(n){
+    setThemeColor(n);
+    ['green','orange','red','blue'].forEach(t=>{const b=document.getElementById('th-'+t);if(b)b.classList.toggle('on',t===n);});
+    drawPitch(cur.pitch||0,cur.roll||0,cur.aoa||0);drawSpeedTape(cur.speed||0);drawAltTape(cur.altitude||0);};
+
+// initial draw
+drawPitch(0,0,0);drawSpeedTape(0);drawAltTape(0);
+
+// Audio context notice
+document.body.addEventListener('click',()=>{document.getElementById('audio-tip').style.display='none';},
+    {once:true,passive:true});
+</script>
+</body>
+</html>
