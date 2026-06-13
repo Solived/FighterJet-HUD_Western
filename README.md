@@ -10,8 +10,6 @@ The resource runs entirely **standalone** — no dependencies on ESX, QBCore, or
 
 ---
 
----
-
 ## Table of Contents
 
 1. [Overview](#overview)
@@ -34,8 +32,8 @@ The resource runs entirely **standalone** — no dependencies on ESX, QBCore, or
 ## Credits
 Original script made by SmokeyDev named "fighterjet-hud".
 Continued by Solived, version v2.
-https://forum.cfx.re/t/release-fighter-jet-head-up-display-hud/2282430
-https://github.com/jkorek/fighterjet-hud
+- https://forum.cfx.re/t/release-fighter-jet-head-up-display-hud/2282430
+- https://github.com/jkorek/fighterjet-hud
 
 ---
 
