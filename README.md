@@ -1,5 +1,15 @@
 # Solived Fighter Jet HUD — Complete Documentation
 
+## Overview
+
+**Solived's Fighter Jet HUD (Western theme)** is a standalone FiveM resource that replaces the default GTA V cockpit with a physics-driven, F-16 style Head-Up Display. It is designed around real Western fighter jet HUD conventions — speed tape left, altitude tape right, heading tape top, canvas-based pitch ladder with a floating Flight Path Marker (FPM), and a full-featured electronic warfare suite including an RWR scope and lock tone system.
+
+All sounds are synthesised in real time using the **Web Audio API** — no external `.wav` or `.mp3` files are required. Audio characteristics are based on published AN/ALR-67 radar warning receiver specifications and standard NATO cockpit alert frequencies.
+
+The resource runs entirely **standalone** — no dependencies on ESX, QBCore, or any other framework. It communicates exclusively between a Lua client thread and an NUI HTML/JS page via `SendNUIMessage`.
+
+---
+
 ---
 
 ## Table of Contents
@@ -21,13 +31,11 @@
 
 ---
 
-## Overview
-
-**Solived Fighter Jet HUD** is a standalone FiveM resource that replaces the default GTA V cockpit with a physics-driven, F-16 style Head-Up Display. It is designed around real Western fighter jet HUD conventions — speed tape left, altitude tape right, heading tape top, canvas-based pitch ladder with a floating Flight Path Marker (FPM), and a full-featured electronic warfare suite including an RWR scope and lock tone system.
-
-All sounds are synthesised in real time using the **Web Audio API** — no external `.wav` or `.mp3` files are required. Audio characteristics are based on published AN/ALR-67 radar warning receiver specifications and standard NATO cockpit alert frequencies.
-
-The resource runs entirely **standalone** — no dependencies on ESX, QBCore, or any other framework. It communicates exclusively between a Lua client thread and an NUI HTML/JS page via `SendNUIMessage`.
+## Credits
+Original script made by SmokeyDev named "fighterjet-hud".
+Continued by Solived, version v2.
+https://forum.cfx.re/t/release-fighter-jet-head-up-display-hud/2282430
+https://github.com/jkorek/fighterjet-hud
 
 ---
 
